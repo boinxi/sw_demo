@@ -53,8 +53,8 @@ export class AnalyticsDataLoader {
         let numSessions = 0;
         const sessionsPerSite: Map<string, Session[]> = new Map<string, Session[]>();
 
-        for (let [user, siteToViews] of this.userToSiteToViews) {
-            for (let [site, views] of siteToViews) {
+        for (const [user, siteToViews] of this.userToSiteToViews) {
+            for (const [site, views] of siteToViews) {
                 let start = views[0].timestamp;
                 let end = views[0].timestamp;
                 for (let i = 1; i < views.length; i++) {
@@ -62,18 +62,19 @@ export class AnalyticsDataLoader {
                         end = views[i].timestamp; // update end of session
                     } else {
                         // end of session detected, push the session to array
-                        let newSession = {visitor_id: user, site, start, end};
+                        const newSession = {visitor_id: user, site, start, end};
                         numSessions++;
-                        let sessions = getWithDefault(sessionsPerSite, site, []);
+                        const sessions = getWithDefault(sessionsPerSite, site, []);
                         sessions.push(newSession);
                         start = views[i].timestamp;
                         end = views[i].timestamp;
                     }
                 }
+
                 // After the loop, add the last session for this site
-                let lastSession = {visitor_id: user, site, start, end};
+                const lastSession = {visitor_id: user, site, start, end};
                 numSessions++;
-                let sessions = getWithDefault(sessionsPerSite, site, []);
+                const sessions = getWithDefault(sessionsPerSite, site, []);
                 sessions.push(lastSession);
             }
         }
