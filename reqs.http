@@ -1,0 +1,13 @@
+GET http://localhost:3000/unique/visitor_4297
+Accept: application/json
+
+###
+GET http://localhost:3000/session
+Accept: application/json
+
+###
+GET http://localhost:3000/map
+Accept: application/json
+
+###
+
