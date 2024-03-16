@@ -41,12 +41,10 @@ export class AnalyticsDataLoader {
             const siteToViewsMap = getWithDefault(this.userToSiteToViews, visitorId, new Map<string, PageView[]>());
             const views = getWithDefault(siteToViewsMap, site, []);
             views.push(view);
-            this.userToSiteToViews.set(visitorId, siteToViewsMap);
 
             // Initialize visitor unique sites with getWithDefault
             const uniqueSites = getWithDefault(this.visitorUniqueSites, visitorId, new Set<string>());
             uniqueSites.add(site);
-            this.visitorUniqueSites.set(visitorId, uniqueSites);
         }
         logger.info("data loaded, unique users: ", this.userToSiteToViews.size);
     }
@@ -54,6 +52,7 @@ export class AnalyticsDataLoader {
     initSessionData() {
         let numSessions = 0;
         const sessionsPerSite: Map<string, Session[]> = new Map<string, Session[]>();
+
         for (let [user, siteToViews] of this.userToSiteToViews) {
             for (let [site, views] of siteToViews) {
                 let start = views[0].timestamp;
@@ -65,21 +64,17 @@ export class AnalyticsDataLoader {
                         // end of session detected, push the session to array
                         let newSession = {visitor_id: user, site, start, end};
                         numSessions++;
-                        if (!sessionsPerSite.get(site)) {
-                            sessionsPerSite.set(site, []);
-                        }
-                        sessionsPerSite.get(site)!.push(newSession);
+                        let sessions = getWithDefault(sessionsPerSite, site, []);
+                        sessions.push(newSession);
                         start = views[i].timestamp;
                         end = views[i].timestamp;
                     }
                 }
                 // After the loop, add the last session for this site
                 let lastSession = {visitor_id: user, site, start, end};
-                if (!sessionsPerSite.get(site)) {
-                    sessionsPerSite.set(site, []);
-                }
                 numSessions++;
-                sessionsPerSite.get(site)!.push(lastSession);
+                let sessions = getWithDefault(sessionsPerSite, site, []);
+                sessions.push(lastSession);
             }
         }
         this.sessionsBySite = sessionsPerSite;

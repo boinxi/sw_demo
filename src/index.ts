@@ -40,8 +40,7 @@ app.get('/median_session_len/:site_url', (req: Request, res: Response) => {
     lengths.sort((a, b) => a - b);
     const medianIndex = Math.floor(lengths.length / 2);
 
-    // If the array has an odd length, return the middle element
-    // If the array has an even length, return the average of the two middle elements
+    // If the array has an odd length, return the middle element. if even, return the average of the two middle elements
     const ans = lengths.length % 2 !== 0 ? lengths[medianIndex] : (lengths[medianIndex - 1] + lengths[medianIndex]) / 2;
 
     res.send({site_url, median: ans});
