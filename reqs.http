@@ -1,13 +1,14 @@
-GET http://localhost:3000/unique/visitor_4297
-Accept: application/json
+### Welcome to My Analytics Server
+GET http://localhost:3000/
 
-###
-GET http://localhost:3000/session
-Accept: application/json
+### Get Number of Sessions for a Specific Site
+GET http://localhost:3000/num_sessions/www.s_4.com
+# should return 3584
 
-###
-GET http://localhost:3000/map
-Accept: application/json
+### Get Median Session Length for a Specific Site
+GET http://localhost:3000/median_session_len/www.s_4.com
+# should return 1361.5
 
-###
-
+### Get Number of Unique Visited Sites for a Visitor
+GET http://localhost:3000/num_unique_visited_sites/visitor_5
+# should return 4

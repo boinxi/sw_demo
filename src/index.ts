@@ -1,47 +1,64 @@
-import express, {Express, Request, Response, Application} from 'express';
+import express, {Application, Request, Response} from 'express';
 import dotenv from 'dotenv';
-import PageView from './pageView'
-import {data, getSessionData, loadDataFromCSV, session, userToSiteToViews, visitorUniqueSites} from './algo';
+import {AnalyticsDataLoader} from "./analyticsDataLoader";
+import {logger} from "./logger";
+import {loggerMiddleware} from "./middlewares/loggerMiddleware";
 
 dotenv.config();
 
-const results: PageView[] = [];
+const dataLoader = new AnalyticsDataLoader();
 
 const app: Application = express();
-const port = process.env.PORT || 8000;
+const port = process.env.PORT || 3000;
+
+app.use(loggerMiddleware);
 
 app.get('/', (req: Request, res: Response) => {
-    res.send('Welcome to Express & TypeScript Server');
-});
-app.get('/map', (req: Request, res: Response) => {
-    res.send(userToSiteToViews.get('visitor_7062'));
-});
-app.get('/views/:id', (req: Request, res: Response) => {
-    const id = req.params.id;
-    res.send(data.get('visitor_7062'));
+    res.send('Welcome to My Analytics Server! 🚀');
 });
 
-app.get('/unique/:id', (req: Request, res: Response) => {
-    const id = req.params.id;
-    console.log("unique sites for visitor", id, visitorUniqueSites.get(id));
-    res.send(visitorUniqueSites.get(id));
+app.get('/num_sessions/:site_url', (req: Request, res: Response) => {
+    const site_url = req.params.site_url;
+    if (!dataLoader.sessionsBySite.has(site_url)) {
+        res.send({site_url, num_sessions: 0});
+        return;
+    }
+    res.send({
+        site_url,
+        num_sessions: dataLoader.sessionsBySite.get(site_url)!.length
+    });
 });
 
-app.get('/session', (req: Request, res: Response) => {
-    const ans: session[] = getSessionData();
-    // ans.forEach((entry) => {
-    //     if (entry.start != entry.end) {
-    //         console.log("visitor", entry.visitor_id, "site", entry.site, "time", (entry.end - entry.start) / 60, "minutes");
-    //     }
-    // });
-    res.send(ans);
+app.get('/median_session_len/:site_url', (req: Request, res: Response) => {
+    const site_url = req.params.site_url;
+    if (!dataLoader.sessionsBySite.has(site_url)) {
+        res.status(404).send({site_url, message: "No sessions found for this site"});
+        return;
+    }
+    const sessionsForSite = dataLoader.sessionsBySite.get(site_url)!;
+    const lengths = sessionsForSite.map(session => session.end - session.start);
+    lengths.sort((a, b) => a - b);
+    const medianIndex = Math.floor(lengths.length / 2);
+
+    // If the array has an odd length, return the middle element
+    // If the array has an even length, return the average of the two middle elements
+    const ans = lengths.length % 2 !== 0 ? lengths[medianIndex] : (lengths[medianIndex - 1] + lengths[medianIndex]) / 2;
+
+    res.send({site_url, median: ans});
 });
 
-loadDataFromCSV('./data/input_1.csv').then(() => {
-    console.log("data loaded");
+app.get('/num_unique_visited_sites/:visitor_id', (req: Request, res: Response) => {
+    const visitor_id = req.params.visitor_id;
+    const ans = dataLoader.visitorUniqueSites.get(visitor_id)?.size || 0;
+    res.send({visitor_id, num_unique_visited_sites: ans});
+});
+
+dataLoader.init().then(() => {
     app.listen(port, () => {
-        console.log(`Server is Fire at http://localhost:${port}`);
+        logger.info(`Server is Fire at http://localhost:${port}`);
     });
 }).catch((err) => {
-    console.log(err);
+    logger.error("Error initializing data loader", err);
+    process.exit(1);
 });
+
