@@ -3,4 +3,5 @@ export interface Session {
     site: string;
     start: number;
     end: number;
+    length: number;
 }

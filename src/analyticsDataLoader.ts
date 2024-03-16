@@ -19,6 +19,7 @@ export class AnalyticsDataLoader {
     async init() {
         await this.loadDataFromCSV();
         this.initSessionData();
+        this.userToSiteToViews = new Map(); // to free up memory, as we don't need this data anymore (it is used to calculate sessions)
     }
 
     async loadDataFromCSV(): Promise<void> {
@@ -26,7 +27,7 @@ export class AnalyticsDataLoader {
         for (const filePath of ['./data/input_1.csv', './data/input_2.csv', './data/input_3.csv']) {
             const records: PageView[] = await readDataFromCSV(filePath);
             logger.info("records found:", records.length, "in file", filePath);
-            allRecords = allRecords.concat(records);
+            allRecords.push(...records);
         }
         logger.info("allRecords found:", allRecords.length);
 
@@ -62,7 +63,7 @@ export class AnalyticsDataLoader {
                         end = views[i].timestamp; // update end of session
                     } else {
                         // end of session detected, push the session to array
-                        const newSession = {visitor_id: user, site, start, end};
+                        const newSession = {visitor_id: user, site, start, end, length: end - start};
                         numSessions++;
                         const sessions = getWithDefault(sessionsPerSite, site, []);
                         sessions.push(newSession);
@@ -72,7 +73,7 @@ export class AnalyticsDataLoader {
                 }
 
                 // After the loop, add the last session for this site
-                const lastSession = {visitor_id: user, site, start, end};
+                const lastSession = {visitor_id: user, site, start, end, length: end - start};
                 numSessions++;
                 const sessions = getWithDefault(sessionsPerSite, site, []);
                 sessions.push(lastSession);

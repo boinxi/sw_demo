@@ -36,7 +36,7 @@ app.get('/median_session_len/:site_url', (req: Request, res: Response) => {
         return;
     }
     const sessionsForSite = dataLoader.sessionsBySite.get(site_url)!;
-    const lengths = sessionsForSite.map(session => session.end - session.start);
+    const lengths = sessionsForSite.map(session => session.length);
     lengths.sort((a, b) => a - b);
     const medianIndex = Math.floor(lengths.length / 2);
 
