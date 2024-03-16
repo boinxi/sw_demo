@@ -25,7 +25,7 @@ export class AnalyticsDataLoader {
         let allRecords: PageView[] = [];
         for (const filePath of ['./data/input_1.csv', './data/input_2.csv', './data/input_3.csv']) {
             const records: PageView[] = await readDataFromCSV(filePath);
-            logger.info("records found:", records.length, "in file", filePath)
+            logger.info("records found:", records.length, "in file", filePath);
             allRecords = allRecords.concat(records);
         }
         logger.info("allRecords found:", allRecords.length);
@@ -38,21 +38,15 @@ export class AnalyticsDataLoader {
             const site = view.site;
 
             // Initialize visitor to site to views mapping
-            if (!this.userToSiteToViews.has(visitorId)) {
-                this.userToSiteToViews.set(visitorId, new Map<string, PageView[]>());
-            }
-            if (!this.userToSiteToViews.get(visitorId)!.has(site)) {
-                this.userToSiteToViews.get(visitorId)!.set(site, []);
-            }
-            const views = this.userToSiteToViews.get(visitorId)!.get(site)!;
+            const siteToViewsMap = getWithDefault(this.userToSiteToViews, visitorId, new Map<string, PageView[]>());
+            const views = getWithDefault(siteToViewsMap, site, []);
             views.push(view);
+            this.userToSiteToViews.set(visitorId, siteToViewsMap);
 
-
-            // Initialize visitor unique sites
-            if (!this.visitorUniqueSites.get(visitorId)) {
-                this.visitorUniqueSites.set(visitorId, new Set<string>());
-            }
-            this.visitorUniqueSites.get(visitorId)!.add(site);
+            // Initialize visitor unique sites with getWithDefault
+            const uniqueSites = getWithDefault(this.visitorUniqueSites, visitorId, new Set<string>());
+            uniqueSites.add(site);
+            this.visitorUniqueSites.set(visitorId, uniqueSites);
         }
         logger.info("data loaded, unique users: ", this.userToSiteToViews.size);
     }
