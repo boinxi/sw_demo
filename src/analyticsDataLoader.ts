@@ -12,14 +12,48 @@ function getWithDefault<K, V>(map: Map<K, V>, key: K, defaultValue: V): V {
 }
 
 export class AnalyticsDataLoader {
-    private userToSiteToViews: Map<string, Map<string, PageView[]>> = new Map();
     visitorUniqueSites: Map<string, Set<string>> = new Map();
     sessionsBySite: Map<string, Session[]> = new Map<string, Session[]>();
+    private latsSessionsBySiteByUser: Map<string, Map<string, Session | null>> = new Map();
 
     async init() {
         await this.loadDataFromCSV();
-        this.initSessionData();
-        this.userToSiteToViews = new Map(); // to free up memory, as we don't need this data anymore (it is used to calculate sessions)
+        this.latsSessionsBySiteByUser = new Map(); // clear this to save memory
+    }
+
+    calcSessions(view: PageView) {
+        const {visitor_id: visitorId, site} = view;
+
+        // this is to store the sessions for each site
+        const siteSessions = getWithDefault(this.sessionsBySite, site, []);
+
+        const relevantSessionsByUser = getWithDefault(this.latsSessionsBySiteByUser, site, new Map());
+
+        if (!relevantSessionsByUser.has(visitorId)) {
+            // first session of user to site
+            const newSession = {visitor_id: visitorId, site, start: view.timestamp, end: view.timestamp, length: 0};
+            relevantSessionsByUser.set(visitorId, newSession);
+            siteSessions.push(newSession);
+        } else {
+            const lastSession = relevantSessionsByUser.get(visitorId)!;
+
+            if (view.timestamp - lastSession.end <= 1800) {
+                // the view is within 30 minutes of the last session, add it to the last session
+                lastSession.end = view.timestamp;
+                lastSession.length = lastSession.end - lastSession.start;
+            } else {
+                // the view is after 30 minutes of the last session, create a new session
+                const newSession = {
+                    visitor_id: visitorId,
+                    site,
+                    start: view.timestamp,
+                    end: view.timestamp,
+                    length: 0
+                };
+                relevantSessionsByUser.set(visitorId, newSession);
+                siteSessions.push(newSession);
+            }
+        }
     }
 
     async loadDataFromCSV(): Promise<void> {
@@ -31,59 +65,28 @@ export class AnalyticsDataLoader {
         }
         logger.info("allRecords found:", allRecords.length);
 
-        // Sort allRecords by timestamp
+        // Sort allRecords by timestamp - this could be done more efficiently by using k-way merge sort (more on the Readme file)
         allRecords.sort((a: PageView, b: PageView) => (a.timestamp) - (b.timestamp));
 
         for (const view of allRecords) {
             const visitorId = view.visitor_id;
             const site = view.site;
 
-            // Initialize visitor to site to views mapping
-            const siteToViewsMap = getWithDefault(this.userToSiteToViews, visitorId, new Map<string, PageView[]>());
-            const views = getWithDefault(siteToViewsMap, site, []);
-            views.push(view);
-
             // Initialize visitor unique sites with getWithDefault
             const uniqueSites = getWithDefault(this.visitorUniqueSites, visitorId, new Set<string>());
             uniqueSites.add(site);
+
+            this.calcSessions(view);
         }
-        logger.info("data loaded, unique users: ", this.userToSiteToViews.size);
-    }
 
-    initSessionData() {
-        let numSessions = 0;
-        const sessionsPerSite: Map<string, Session[]> = new Map<string, Session[]>();
-
-        for (const [user, siteToViews] of this.userToSiteToViews) {
-            for (const [site, views] of siteToViews) {
-                let start = views[0].timestamp;
-                let end = views[0].timestamp;
-                for (let i = 1; i < views.length; i++) {
-                    if (views[i].timestamp - end <= 1800) {
-                        end = views[i].timestamp; // update end of session
-                    } else {
-                        // end of session detected, push the session to array
-                        const newSession = {visitor_id: user, site, start, end, length: end - start};
-                        numSessions++;
-                        const sessions = getWithDefault(sessionsPerSite, site, []);
-                        sessions.push(newSession);
-                        start = views[i].timestamp;
-                        end = views[i].timestamp;
-                    }
-                }
-
-                // After the loop, add the last session for this site
-                const lastSession = {visitor_id: user, site, start, end, length: end - start};
-                numSessions++;
-                const sessions = getWithDefault(sessionsPerSite, site, []);
-                sessions.push(lastSession);
-            }
-        }
-        this.sessionsBySite = sessionsPerSite;
-        sessionsPerSite.forEach((sessions, site) => {
+        // just for logging
+        let totalSessions = 0;
+        this.sessionsBySite.forEach((sessions, site) => {
+            totalSessions += sessions.length;
             logger.info("site:", site, "sessions:", sessions.length);
         });
-        logger.info("sessions calculated, total sessions: ", numSessions);
+
+        logger.info("sessions calculated, total sessions: ", totalSessions);
     }
 }
 
