@@ -18,7 +18,7 @@ export class AnalyticsDataLoader {
 
     async init() {
         await this.loadDataFromCSV();
-        this.latsSessionsBySiteByUser = new Map(); // clear this to save memory
+        this.latsSessionsBySiteByUser = new Map(); // clear this to save memory after the data is loaded
     }
 
     calcSessions(view: PageView) {
